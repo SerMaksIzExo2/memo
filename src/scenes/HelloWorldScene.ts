@@ -1,184 +1,287 @@
 import Phaser from 'phaser'
+import background from '../../assets/sprites/background.png';
+import card from '../../assets/sprites/card.png';
+import card1 from '../../assets/sprites/card1.png';
+import card2 from '../../assets/sprites/card2.png';
+import card3 from '../../assets/sprites/card3.png';
+import card4 from '../../assets/sprites/card4.png';
+import card5 from '../../assets/sprites/card5.png';
+import cardMusic from '../../assets/sounds/cardMusic.mp3'
+import complete from '../../assets/sounds/complete.mp3'
+import success from '../../assets/sounds/success.mp3'
+import theme from '../../assets/sounds/theme.mp3'
+import timeout from '../../assets/sounds/timeout.mp3'
+import { Position, Sound } from 'types';
+import { Card } from '~/Card';
+import { levels } from '~/constant';
 
 export default class HelloWorldScene extends Phaser.Scene {
-    private platforms?: Phaser.Physics.Arcade.StaticGroup;
-    private player?: Phaser.Physics.Arcade.Sprite;
-    private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
-    private stars?: Phaser.Physics.Arcade.Group;
-
-    private score = 0;
-    private movementSpeed = 160;
-    private jumpingForce = 380;
+    private positions: Position[] = [];
+    private cards: Card[] = [];
+    private openedCard?: Card;
+    private openedCardCount = 0;
+    private timeoutText?: Phaser.GameObjects.Text;
+    private levelText?: Phaser.GameObjects.Text;
     private scoreText?: Phaser.GameObjects.Text;
+    private timeout = 0;
+    private level?: number;
+    private id = 0;
+    private count = 0;
+    private sounds?: Sound;
+    private timer!: Phaser.Time.TimerEvent
+    private currentLevelIndex = 0;
+    private totalScore = 0;
+    private consecutivePairs = 0;
 
-    private bombs?: Phaser.Physics.Arcade.Group;
-
-    private gameOver = false;
 
     constructor() {
         super('hello-world')
     }
 
     preload() {
-        this.load.image('sky', 'assets/sky.png');
-        this.load.image('ground', 'assets/platform.png');
-        this.load.image('star', 'assets/star.png');
-        this.load.image('bomb', 'assets/bomb.png');
-        this.load.spritesheet('dude', 'assets/dude.png', { frameWidth: 32, frameHeight: 48 });
+        this.load.image('bg', background);
+        this.load.image('card', card);
+        this.load.image('card1', card1);
+        this.load.image('card2', card2);
+        this.load.image('card3', card3);
+        this.load.image('card4', card4);
+        this.load.image('card5', card5);
+
+        this.load.audio('cardMusic', cardMusic)
+        this.load.audio('complete', complete)
+        this.load.audio('success', success)
+        this.load.audio('theme', theme)
+        this.load.audio('timeout', timeout)
     }
 
     create() {
-        this.createBackgroundImage();
-        this.createPlatforms();
-        this.createPlayer();
-        this.createStars();
-        this.createBombs();
-        this.createCursors();
-        this.createScoreText();
-        this.createCollider(this.player, this.platforms, this.stars, this.bombs);
-        this.createOverlap(this.player, this.stars);
+        this.createSounds()
+        this.createTimer();
+        this.createBackground();
+        this.createText();
+        this.start()
     }
 
     update() {
-        this.updatePlayer(this.cursors)
+
     }
 
-    createBackgroundImage() {
-        this.add.image(400, 300, 'sky');
+    onCardMoveComplete() {
+        this.count += 1;
+
+        if (this.count >= this.cards.length) {
+            this.count = 0;
+            this.start();
+        }
     }
 
-    createPlatforms() {
-        this.platforms = this.physics.add.staticGroup();
-        const ground = this.platforms.create(400, 568, 'ground') as Phaser.Physics.Arcade.Sprite;
-        ground.setScale(2).refreshBody();
+    goToNextLevel() {
+        this.currentLevelIndex += 1;
 
-        this.platforms.create(600, 400, 'ground');
-        this.platforms.create(50, 250, 'ground');
-        this.platforms.create(750, 220, 'ground');
     }
 
-    createPlayer() {
-        this.player = this.physics.add.sprite(100, 450, 'dude');
-        this.player.setBounce(0.2);
-        this.player.setCollideWorldBounds(true);
+    restart() {
+        this.cards.forEach(card => {
+            card.depth = Number(card.position.delay);
+            card.move({
+                x: Number(this.sys.game.config.width) + card.width,
+                y: Number(this.sys.game.config.height) + card.height,
+                delay: card.position.delay,
+                callback: () => {
+                    this.onCardMoveComplete();
+                }
 
-        this.anims.create({
-            key: 'left',
-            frames: this.anims.generateFrameNumbers('dude', {
-                start: 0, end: 3
-            }),
-            frameRate: 10,
-            repeat: -1
+            })
+
         })
 
-        this.anims.create({
-            key: 'turn',
-            frames: [{ key: 'dude', frame: 4 }],
-            frameRate: 20
-        })
-
-        this.anims.create({
-            key: 'right',
-            frames: this.anims.generateFrameNumbers('dude', {
-                start: 5, end: 8
-            }),
-            frameRate: 10,
-            repeat: -1
-        })
     }
 
-    createCollider(player, platforms, stars, bombs) {
-        this.physics.add.collider(player, platforms);
-        this.physics.add.collider(player, bombs, this.handleHitBomb, undefined, this);
-        this.physics.add.collider(stars, platforms);
-        this.physics.add.collider(bombs, platforms);
-    }
-
-    createOverlap(player, stars) {
-        this.physics.add.overlap(player, stars, this.handletCollecStar, undefined, this);
-    }
-
-    createStars() {
-        this.stars = this.physics.add.group({
-            key: 'star',
-            repeat: 11,
-            setXY: { x: 12, y: 0, stepX: 70 }
+    destroyCards() {
+        this.cards.forEach(card => {
+            card.destroy();
         })
-        this.stars.children.iterate(c => {
-            const child = c as Phaser.Physics.Arcade.Image;
-            child.setBounceY(Phaser.Math.FloatBetween(0.4, 0.8))
+        this.cards = [];
+    }
+
+    start() {
+        this.destroyCards();
+        this.createCards();
+        this.timeout = levels[this.currentLevelIndex].timeout;
+        this.level = levels[this.currentLevelIndex].level;
+        this.levelText?.setText('LVL ' + this.level)
+        this.scoreText?.setText('Score:' + this.totalScore);
+
+        this.openedCard = undefined;
+        this.sounds?.theme.play({
+            volume: 0.05
+        })
+        this.timer.paused = false;
+
+        this.initCards();
+        this.showCards();
+    }
+
+
+    initCards() {
+
+        this.positions = this.getCardPositions();
+        this.cards.forEach(card => {
+            card.init(this.positions.pop()!)
         })
     }
 
-    createCursors() {
-        this.cursors = this.input.keyboard.createCursorKeys();
-    }
+    showCards() {
 
-    createScoreText() {
-        this.scoreText = this.add.text(16, 16, 'Score: 0', {
-            fontSize: '32px',
-            fill: '#000'
+        this.cards.forEach(card => {
+            card.move({
+                x: card.position.x,
+                y: card.position.y,
+                delay: card.position.delay,
+            })
         })
     }
 
-    createBombs() {
-        this.bombs = this.physics.add.group();
+    createCards() {
+        const { cards } = levels[this.currentLevelIndex]
+        for (let value of cards) {
+            for (let i = 0; i < 2; i += 1) {
+                this.cards.push(new Card(this, value))
+            }
+        }
+
+        this.input.on("gameobjectdown", this.onCardClicked, this);
     }
 
-    updatePlayer(cursors) {
-        if (!cursors) {
+
+    onCardClicked(pointer: Phaser.Input.Pointer, card: Card) {
+        if (card.opened) {
             return
         }
 
-        if (cursors?.left?.isDown) {
-            this.player?.setVelocityX(-this.movementSpeed);
-            this.player?.anims.play('left', true);
-        } else if (cursors.right?.isDown) {
-            this.player?.setVelocityX(this.movementSpeed);
-            this.player?.anims.play('right', true);
-        } else {
-            this.player?.setVelocityX(0);
-            this.player?.anims.play('turn');
-        }
+        this.sounds?.cardMusic.play()
 
-        if (cursors.up?.isDown && this.player?.body.touching.down) {
-            this.player.setVelocity(-this.jumpingForce);
-        }
-    }
 
-    private handleHitBomb(player: Phaser.GameObjects.GameObject, b: Phaser.GameObjects.GameObject) {
-        this.physics.pause();
-        this.player?.setTint(0xff0000);
-        this.player?.anims.play('turn');
-        this.gameOver = true;
-    }
+        if (this.openedCard) {
 
-    private handletCollecStar(player: Phaser.GameObjects.GameObject, s: Phaser.GameObjects.GameObject) {
-        const star = s as Phaser.Physics.Arcade.Image;
-        star.disableBody(true, true);
+            if (this.openedCard.value === card.value) {
+                this.consecutivePairs += 1;
 
-        this.score += 10;
-        this.scoreText?.setText(`Score: ${this.score}`);
+                const pointsForConsecutivePairs = [100, 250, 500, 1000, 5000];
 
-        if (this.stars?.countActive(true) === 0) {
-            this.stars.children.iterate(c => {
-                const child = c as Phaser.Physics.Arcade.Image
-                child.enableBody(true, child.x, 0, true, true)
-            })
+                if (this.consecutivePairs <= pointsForConsecutivePairs.length) {
+                    this.totalScore += pointsForConsecutivePairs[this.consecutivePairs - 1];
 
-            if (this.player) {
-                const x = this.player.x < 400
-                    ? Phaser.Math.Between(400, 800)
-                    : Phaser.Math.Between(0, 400);
+                } else {
+                    this.totalScore += 5000;
+                }
 
-                const bomb = Phaser.Physics.Arcade.Image = this.bombs?.create(x, 16, 'bomb');
-                bomb.setBounce(1)
-                bomb.setCollideWorldBounds(true)
-                bomb.setVelocity(Phaser.Math.Between(-200, 200), 20)
+                this.scoreText?.setText('Score:' + this.totalScore);
+
+                this.openedCard = undefined;
+                this.openedCardCount += 1;
+                this.sounds?.success.play();
             }
+            else {
+                this.consecutivePairs = 0;
+
+                this.openedCard.close();
+                this.openedCard = card;
+
+            }
+        }
+        else {
+            this.openedCard = card
 
         }
 
+        card.open(() => {
+            if (this.openedCardCount === this.cards.length / 2) {
+                this.sounds?.complete.play();
+                this.openedCardCount = 0;
+                this.goToNextLevel();
 
+                this.restart()
+            }
+        });
+    }
+
+    getCardPositions(): Position[] {
+
+        const cardTexture = this.textures.get('card').getSourceImage();
+        const cardWidth = cardTexture.width + 4
+        const cardHeight = cardTexture.height + 4
+        const offsetX = (Number(this.sys.game.config.width) - cardWidth * 5) / 2 + cardWidth / 2;
+        const offsetY = (Number(this.sys.game.config.height) - cardHeight * 2) / 2 + cardHeight / 2
+
+        const { rows, cols } = levels[this.currentLevelIndex]
+
+        for (let row = 0; row < rows; row += 1) {
+            for (let col = 0; col < cols; col += 1) {
+                this.id += 1
+                this.positions.push({
+                    delay: this.id * 100,
+                    x: offsetX + col * cardWidth,
+                    y: offsetY + row * cardHeight,
+                })
+            }
+        }
+        return Phaser.Utils.Array.Shuffle(this.positions);
+
+    }
+
+    createSounds() {
+        this.sounds = {
+            cardMusic: this.sound.add('cardMusic'),
+            complete: this.sound.add('complete'),
+            success: this.sound.add('success'),
+            theme: this.sound.add('theme'),
+            timeout: this.sound.add('timeout'),
+        };
+    }
+
+
+
+    createTimer() {
+        this.timer = this.time.addEvent({
+            delay: 1000,
+            callback: this.onTimerTick,
+            callbackScope: this,
+            loop: true
+        })
+    }
+
+    onTimerTick() {
+        this.timeoutText?.setText('Time: ' + this.timeout)
+
+        if (this.timeout <= 0) {
+            this.timer.paused = true;
+
+            this.sounds?.timeout.play();
+            this.restart()
+        }
+        else {
+            this.timeout -= 1;
+        }
+    }
+    createText() {
+        this.timeoutText = this.add.text(10, 330, '', {
+            font: '25px Arial',
+            color: '#ffffff',
+        })
+        this.levelText = this.add.text(10, 10, '', {
+            font: '25px Arial',
+            color: '#000',
+        })
+        this.scoreText = this.add.text(100, 10, '', {
+            font: '25px Arial',
+            color: '#000',
+        })
+    }
+
+
+
+    createBackground() {
+        this.add.sprite(0, 0, 'bg').setOrigin(0, 0);
     }
 }
