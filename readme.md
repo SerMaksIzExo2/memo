@@ -26,7 +26,11 @@ git clone https://github.com/SerMaksIzExo2/memo.git
 npm install
 ```
 
-3. Enjoy, if any questions just follow the previous tutorials.
+3. After cloning the repo, run npm install from your project directory. Then, you can start the local development server by running 
+
+```console
+npm run dev
+```
 
 
 ## **Status**
