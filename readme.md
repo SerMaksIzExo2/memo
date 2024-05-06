@@ -29,7 +29,7 @@ npm install
 3. After cloning the repo, run npm install from your project directory. Then, you can start the local development server by running 
 
 ```console
-npm run dev
+npm run start
 ```
 
 
