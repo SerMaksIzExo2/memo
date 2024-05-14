@@ -3,6 +3,7 @@
 	"version": "1.0.0",
 	"description": "A template project for Phaser3 using Parceljs",
 	"scripts": {
+		"deploy": "gh-pages -d dist",
 		"start": "parcel src/index.html -p 8000",
 		"build": "parcel build src/index.html --out-dir dist",
 		"test": "echo \"Error: no test specified\" && exit 1",
@@ -12,9 +13,9 @@
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/ourcade/phaser3-parcel-template.git"
+		"url": "https://github.com/SerMaksIzExo2/memo.git"
 	},
-	"homepage": "https://github.com/ourcade/phaser3-parcel-template",
+	"homepage": "https://sermaksizexo2.github.io/memo/",
 	"devDependencies": {
 		"@typescript-eslint/eslint-plugin": "^2.29.0",
 		"@typescript-eslint/parser": "^2.29.0",
@@ -25,6 +26,7 @@
 		"typescript": "^3.8.3"
 	},
 	"dependencies": {
+		"gh-pages": "^6.1.1",
 		"phaser": "^3.24.1"
 	},
 	"parcelCleanPaths": [
