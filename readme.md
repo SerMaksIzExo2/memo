@@ -8,7 +8,7 @@
   - [**Status**](#status)
 
 
-### Demo
+### **Demo**
 
 You can try it using the [Demo](https://sermaksizexo2.github.io/memo/)
 
