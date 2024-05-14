@@ -2,6 +2,7 @@
 
 - [**Phaser 3 Tutorial Game**](#phaser-3-tutorial-game)
   - [**Table of contents**](#table-of-contents)
+  - [**Demo**](#demo)
   - [**Technologies**](#technologies)
   - [**Setup**](#setup)
   - [**Status**](#status)
